@@ -66,7 +66,7 @@ def listen_for_msg():
                 send_msg(user_id, "Напишите ваши полные Фамилию Имя Отчество")
 
             elif user_id in waiting_fio:
-                fio = text
+                fio = text.title()
                 waiting_fio.remove(user_id)
 
                 send_msg(user_id, "Генерирую сертификат...")
