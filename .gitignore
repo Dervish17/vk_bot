@@ -1,0 +1,26 @@
+# created by virtualenv automatically
+
+settings.py
+ .venv
+
+ __pycache__/
+*.pyc
+.idea/
+
+# Python
+
+
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# PyCharm
+
+
+# Env
+.env
+
+# OS
+.DS_Store
+Thumbs.db
