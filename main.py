@@ -74,7 +74,7 @@ def listen_for_msg():
                 img_bytes = draw_certificate(fio)
                 send_image(user_id, img_bytes)
 
-                send_msg(user_id, "Готово! Можете скачать и распечатать 👇", keyboard=keyboard.get_keyboard())
+                send_msg(user_id, "Готово! Можете скачать и распечатать ☝️", keyboard=keyboard.get_keyboard())
 
             else:
                 send_msg(user_id, "Привет! Для получения сертификата нажмите кнопку ниже 👇", keyboard=keyboard.get_keyboard())
