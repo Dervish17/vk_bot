@@ -8,6 +8,7 @@ from settings import VK_API
 from io import BytesIO
 
 vk_session = vk_api.VkApi(token=VK_API)
+GROUP_ID = 235963490
 vk = vk_session.get_api()
 upload = VkUpload(vk_session)
 
@@ -15,6 +16,8 @@ longpoll = VkLongPoll(vk_session)
 
 keyboard = VkKeyboard(one_time=True)
 keyboard.add_button('Сертификат', color=VkKeyboardColor.SECONDARY)
+subscribe_keyboard = VkKeyboard(one_time=True)
+subscribe_keyboard.add_openlink_button("Подписаться", "https://vk.com/club235963490")
 
 waiting_fio = set()
 
@@ -52,6 +55,10 @@ def send_image(user_id, image_bytes):
         attachment=attachment
     )
 
+def is_subscribed(user_id):
+    result = vk.groups.isMember(group_id=GROUP_ID, user_id=user_id)
+    return bool(result)
+
 
 def listen_for_msg():
     for event in longpoll.listen():
@@ -62,6 +69,14 @@ def listen_for_msg():
             print(f'Сообщение от {user_id}: {text}')
 
             if text == "Сертификат":
+                if not is_subscribed(user_id):
+                    send_msg(
+                        user_id,
+                        "❌ Для получения сертификата необходимо подписаться:",
+                        keyboard=subscribe_keyboard.get_keyboard()
+                    )
+                    continue
+
                 waiting_fio.add(user_id)
                 send_msg(user_id, "Напишите ваши полные Фамилию Имя Отчество")
 
