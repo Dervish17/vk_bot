@@ -1,4 +1,5 @@
 import vk_api
+import re
 from vk_api import VkUpload
 from vk_api.utils import get_random_id
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
@@ -13,6 +14,15 @@ init_db()
 
 vk_session = vk_api.VkApi(token=VK_API)
 GROUP_ID = 235963490
+MAX_FIO_LENGTH = 60
+MIN_FIO_LENGTH = 5
+
+FIO_REGEX = re.compile(r"^[А-Яа-яЁёA-Za-z\s\-]+$")
+
+BAD_WORDS = {
+    "хуй", "пизд", "еб", "бля", "сука", "мудак", "гандон", "чмо",
+    "fuck", "shit", "bitch", "asshole", "cunt", "dick"
+}
 vk = vk_session.get_api()
 upload = VkUpload(vk_session)
 
@@ -22,7 +32,7 @@ keyboard = VkKeyboard(one_time=True)
 keyboard.add_button('Сертификат', color=VkKeyboardColor.SECONDARY)
 subscribe_keyboard = VkKeyboard(one_time=True)
 subscribe_keyboard.add_openlink_button("Подписаться", "https://vk.com/club235963490")
-admin_keyboard = VkKeyboard(one_time=False)
+admin_keyboard = VkKeyboard(one_time=True)
 admin_keyboard.add_button('Сертификат', color=VkKeyboardColor.SECONDARY)
 admin_keyboard.add_line()
 admin_keyboard.add_button('Статистика', color=VkKeyboardColor.PRIMARY)
@@ -30,6 +40,35 @@ admin_keyboard.add_button('Экспорт', color=VkKeyboardColor.POSITIVE)
 
 waiting_fio = set()
 
+def validate_fio(text: str):
+    text = text.strip()
+
+    # длина
+    if len(text) < MIN_FIO_LENGTH:
+        return False, "❌ Слишком короткое ФИО"
+
+    if len(text) > MAX_FIO_LENGTH:
+        return False, "❌ Слишком длинное ФИО"
+
+    # спецсимволы
+    if not FIO_REGEX.match(text):
+        return False, "❌ Используйте только буквы, пробелы и дефис"
+
+    # защита от цифр
+    if any(ch.isdigit() for ch in text):
+        return False, "❌ В ФИО не должно быть цифр"
+
+    # анти-мат
+    low = text.lower()
+    for word in BAD_WORDS:
+        if word in low:
+            return False, "❌ Недопустимые слова в ФИО"
+
+    # защита от мусора: 1 слово — нельзя
+    if len(text.split()) < 2:
+        return False, "❌ Введите Фамилию и Имя (и Отчество при наличии)"
+
+    return True, text.title()
 
 def send_msg(peer_id, message, keyboard=None):
     vk.messages.send(
@@ -79,7 +118,7 @@ def send_excel(peer_id, filename):
     )
 
 def listen_for_msg():
-    ADMIN_IDS = {140345220}
+    ADMIN_IDS = {140345220, 301255581}
 
     for event in longpoll.listen():
         if event.type != VkEventType.MESSAGE_NEW or not event.to_me:
@@ -121,7 +160,12 @@ def listen_for_msg():
             continue
 
         if user_id in waiting_fio:
-            fio = text.title()
+            ok, result = validate_fio(text)
+            if not ok:
+                send_msg(peer_id, result)
+                continue
+
+            fio = result
             waiting_fio.remove(user_id)
 
             send_msg(peer_id, "Генерирую сертификат...", keyboard=None)
