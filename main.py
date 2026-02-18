@@ -1,5 +1,7 @@
 import vk_api
 import re
+import os
+from dotenv import load_dotenv
 from vk_api import VkUpload
 from vk_api.utils import get_random_id
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
@@ -9,10 +11,13 @@ from settings import VK_API
 from database import init_db, save_certificate, get_stats
 from export_excel import export_excel
 from io import BytesIO
+import time
 
 init_db()
 
-vk_session = vk_api.VkApi(token=VK_API)
+load_dotenv()
+TOKEN = os.getenv("VK_TOKEN")
+vk_session = vk_api.VkApi(token=TOKEN)
 GROUP_ID = 235963490
 MAX_FIO_LENGTH = 60
 MIN_FIO_LENGTH = 5
@@ -80,11 +85,11 @@ def send_msg(peer_id, message, keyboard=None):
 
 
 def draw_certificate(fio):
-    img = Image.open("resources/picture.png").convert("RGB")
+    img = Image.open("resources/certificate.jpg").convert("RGB")
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype("font/CormorantGaramond-SemiBold.ttf", size=30)
+    font = ImageFont.truetype("font/CormorantGaramond-SemiBoldItalic.ttf", size=40)
 
-    position = (300, 320)
+    position = (400, 360)
     draw.text(position, fio, fill=(0, 0, 0), font=font)
 
     bio = BytesIO()
@@ -118,7 +123,7 @@ def send_excel(peer_id, filename):
     )
 
 def listen_for_msg():
-    ADMIN_IDS = {140345220, 301255581}
+    ADMIN_IDS = {140345220}
 
     for event in longpoll.listen():
         if event.type != VkEventType.MESSAGE_NEW or not event.to_me:
@@ -180,6 +185,16 @@ def listen_for_msg():
             send_msg(peer_id,
                      "Привет! Для получения сертификата нажмите кнопку ниже 👇",
                      keyboard=kb)
+
+import time
+
+while True:
+    try:
+        listen_for_msg()
+    except Exception as e:
+        print("Ошибка:", e)
+        time.sleep(5)
+
 
 if __name__ == '__main__':
     listen_for_msg()
