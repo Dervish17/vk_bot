@@ -1,7 +1,10 @@
 import sqlite3
+import  os
 from datetime import datetime
 
-DB_NAME = "certificates.db"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_NAME = os.path.join(BASE_DIR, "certificates.db")
 
 
 def init_db():
