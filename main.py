@@ -80,11 +80,11 @@ def send_msg(peer_id, message, keyboard=None):
 
 
 def draw_certificate(fio):
-    img = Image.open("resources/picture.png").convert("RGB")
+    img = Image.open("resources/certificate.jpg").convert("RGB")
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype("font/CormorantGaramond-SemiBold.ttf", size=30)
+    font = ImageFont.truetype("font/CormorantGaramond-SemiBoldItalic.ttf", size=40)
 
-    position = (300, 320)
+    position = (400, 360)
     draw.text(position, fio, fill=(0, 0, 0), font=font)
 
     bio = BytesIO()
@@ -118,7 +118,7 @@ def send_excel(peer_id, filename):
     )
 
 def listen_for_msg():
-    ADMIN_IDS = {140345220, 301255581}
+    ADMIN_IDS = {140345220}
 
     for event in longpoll.listen():
         if event.type != VkEventType.MESSAGE_NEW or not event.to_me:
