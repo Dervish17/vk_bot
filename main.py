@@ -18,7 +18,7 @@ init_db()
 load_dotenv()
 TOKEN = os.getenv("VK_TOKEN")
 vk_session = vk_api.VkApi(token=TOKEN)
-GROUP_ID = 235963490
+GROUP_ID = 115581151
 MAX_FIO_LENGTH = 60
 MIN_FIO_LENGTH = 5
 
@@ -36,7 +36,7 @@ longpoll = VkLongPoll(vk_session)
 keyboard = VkKeyboard(one_time=True)
 keyboard.add_button('Сертификат', color=VkKeyboardColor.SECONDARY)
 subscribe_keyboard = VkKeyboard(one_time=True)
-subscribe_keyboard.add_openlink_button("Подписаться", "https://vk.com/club235963490")
+subscribe_keyboard.add_openlink_button("Подписаться", "https://vk.com/club115581151")
 admin_keyboard = VkKeyboard(one_time=True)
 admin_keyboard.add_button('Сертификат', color=VkKeyboardColor.SECONDARY)
 admin_keyboard.add_line()
@@ -123,7 +123,7 @@ def send_excel(peer_id, filename):
     )
 
 def listen_for_msg():
-    ADMIN_IDS = {140345220}
+    ADMIN_IDS = {140345220, 203184728, 354900973}
 
     for event in longpoll.listen():
         if event.type != VkEventType.MESSAGE_NEW or not event.to_me:
@@ -185,8 +185,6 @@ def listen_for_msg():
             send_msg(peer_id,
                      "Привет! Для получения сертификата нажмите кнопку ниже 👇",
                      keyboard=kb)
-
-import time
 
 while True:
     try:
