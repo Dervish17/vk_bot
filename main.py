@@ -2,10 +2,9 @@ import vk_api
 import vk_api.exceptions
 import requests
 import re
-import os
 import threading
 import queue
-from dotenv import load_dotenv
+from config import *
 from vk_api import VkUpload
 from vk_api.utils import get_random_id
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
@@ -19,20 +18,7 @@ import time
 init_db()
 
 send_queue = queue.Queue()
-SEND_DELAY = 0.35
-load_dotenv()
-TOKEN = os.getenv("VK_TOKEN_TEST")
 vk_session = vk_api.VkApi(token=TOKEN)
-GROUP_ID = 115581151
-MAX_FIO_LENGTH = 60
-MIN_FIO_LENGTH = 5
-
-FIO_REGEX = re.compile(r"^[А-Яа-яЁёA-Za-z\s\-]+$")
-
-BAD_WORDS = {
-    "хуй", "пизд", "еб", "бля", "сука", "мудак", "гандон", "чмо",
-    "fuck", "shit", "bitch", "asshole", "cunt", "dick"
-}
 vk = vk_session.get_api()
 upload = VkUpload(vk_session)
 
@@ -55,7 +41,7 @@ def sender_worker():
         try:
             func, args = send_queue.get()
             func(*args)
-            time.sleep(SEND_DELAY)
+            time.sleep(0.35)
         except Exception as e:
             print("Sender fatal error:", e)
             time.sleep(2)
@@ -248,7 +234,7 @@ def listen_for_msg():
                 continue
 
             fio = result
-            waiting_fio.remove(user_id)
+            del waiting_fio[user_id]
 
             send_msg(peer_id, "Генерирую сертификат...", keyboard=None)
             img_bytes = draw_certificate(fio)
