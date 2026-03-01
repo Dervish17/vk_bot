@@ -48,7 +48,7 @@ admin_keyboard.add_line()
 admin_keyboard.add_button('Статистика', color=VkKeyboardColor.PRIMARY)
 admin_keyboard.add_button('Экспорт', color=VkKeyboardColor.POSITIVE)
 
-waiting_fio = set()
+waiting_fio = dict()
 
 def sender_worker():
     while True:
@@ -233,11 +233,15 @@ def listen_for_msg():
                          keyboard=subscribe_keyboard)
                 continue
 
-            waiting_fio.add(user_id)
+            waiting_fio[user_id] = time.time()
             send_msg(peer_id, "✍ Напишите ваши полные Фамилию Имя Отчество", keyboard=None)
             continue
 
         if user_id in waiting_fio:
+            if time.time() - waiting_fio[user_id] > 300:
+                del waiting_fio[user_id]
+                send_msg(peer_id, "⏳ Время ожидания истекло, нажмите «Сертификат» снова")
+                continue
             ok, result = validate_fio(text)
             if not ok:
                 send_msg(peer_id, result)
