@@ -1,13 +1,16 @@
 import vk_api
+import vk_api.exceptions
+import requests
 import re
 import os
+import threading
+import queue
 from dotenv import load_dotenv
 from vk_api import VkUpload
 from vk_api.utils import get_random_id
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkLongPoll, VkEventType
 from PIL import Image, ImageDraw, ImageFont
-from settings import VK_API
 from database import init_db, save_certificate, get_stats
 from export_excel import export_excel
 from io import BytesIO
@@ -15,8 +18,10 @@ import time
 
 init_db()
 
+send_queue = queue.Queue()
+SEND_DELAY = 0.35
 load_dotenv()
-TOKEN = os.getenv("VK_TOKEN")
+TOKEN = os.getenv("VK_TOKEN_TEST")
 vk_session = vk_api.VkApi(token=TOKEN)
 GROUP_ID = 115581151
 MAX_FIO_LENGTH = 60
@@ -45,43 +50,82 @@ admin_keyboard.add_button('Экспорт', color=VkKeyboardColor.POSITIVE)
 
 waiting_fio = set()
 
+def sender_worker():
+    while True:
+        try:
+            func, args = send_queue.get()
+            func(*args)
+            time.sleep(SEND_DELAY)
+        except Exception as e:
+            print("Sender fatal error:", e)
+            time.sleep(2)
+        finally:
+            send_queue.task_done()
+
+threading.Thread(target=sender_worker, daemon=True).start()
+
 def validate_fio(text: str):
     text = text.strip()
 
-    # длина
     if len(text) < MIN_FIO_LENGTH:
         return False, "❌ Слишком короткое ФИО"
 
     if len(text) > MAX_FIO_LENGTH:
         return False, "❌ Слишком длинное ФИО"
 
-    # спецсимволы
     if not FIO_REGEX.match(text):
         return False, "❌ Используйте только буквы, пробелы и дефис"
 
-    # защита от цифр
     if any(ch.isdigit() for ch in text):
         return False, "❌ В ФИО не должно быть цифр"
 
-    # анти-мат
     low = text.lower()
     for word in BAD_WORDS:
         if word in low:
             return False, "❌ Недопустимые слова в ФИО"
 
-    # защита от мусора: 1 слово — нельзя
     if len(text.split()) < 2:
         return False, "❌ Введите Фамилию и Имя (и Отчество при наличии)"
 
     return True, text.title()
 
-def send_msg(peer_id, message, keyboard=None):
-    vk.messages.send(
-        peer_id=peer_id,
-        message=message,
-        random_id=get_random_id(),
-        keyboard=keyboard if keyboard is None else keyboard.get_keyboard(),
-    )
+def send_msg(peer_id, text, keyboard=None):
+    send_queue.put((_send_msg, (peer_id, text, keyboard)))
+
+def _send_msg(peer_id, message, keyboard=None):
+    retries = 0
+    max_retries = 5
+
+    while retries < max_retries:
+        try:
+            vk.messages.send(
+                peer_id=peer_id,
+                message=message,
+                random_id=get_random_id(),
+                keyboard=keyboard if keyboard is None else keyboard.get_keyboard(),
+            )
+            return
+        except vk_api.exceptions.ApiError as e:
+            code = e.error.get("error_code")
+
+            if code in (6, 10, 14, 29):
+                delay = min(2 ** retries, 30)
+                print(f"VK API error {code}. Retry in {delay}s")
+                time.sleep(delay)
+                retries += 1
+            else:
+                print("VK API fatal error:", e)
+                return
+        except (requests.exceptions.ReadTimeout,
+                requests.exceptions.ConnectionError) as e:
+
+            delay = min(2 ** retries, 30)
+            print(f"Connection error: {e}. Retry in {delay}s")
+            time.sleep(delay)
+            retries += 1
+
+
+    print("Message send failed after retries")
 
 
 def draw_certificate(fio):
@@ -97,16 +141,39 @@ def draw_certificate(fio):
     bio.seek(0)
     return bio
 
+def send_image(peer_id, img_bytes):
+    send_queue.put((_send_image, (peer_id, img_bytes)))
 
-def send_image(peer_id, image_bytes):
-    photo = upload.photo_messages(photos=image_bytes)[0]
-    attachment = f'photo{photo["owner_id"]}_{photo["id"]}'
 
-    vk.messages.send(
-        peer_id=peer_id,
-        random_id=get_random_id(),
-        attachment=attachment
-    )
+def _send_image(peer_id, image_bytes):
+    retries = 0
+    max_retries = 5
+
+    while retries < max_retries:
+        try:
+            photo = upload.photo_messages(photos=image_bytes)[0]
+            attachment = f'photo{photo["owner_id"]}_{photo["id"]}'
+
+            vk.messages.send(
+                peer_id=peer_id,
+                random_id=get_random_id(),
+                attachment=attachment
+            )
+            return
+        except vk_api.exceptions.ApiError as e:
+            code = e.error.get("error_code")
+            delay = min(2 ** retries, 30)
+            print(f"VK image error {code}. Retry in {delay}s")
+            time.sleep(delay)
+            retries += 1
+
+        except Exception as e:
+            delay = min(2 ** retries, 30)
+            print(f"Upload error: {e}. Retry in {delay}s")
+            time.sleep(delay)
+            retries += 1
+
+        print("Image send failed after retries")
 
 def is_subscribed(user_id):
     result = vk.groups.isMember(group_id=GROUP_ID, user_id=user_id)
@@ -153,6 +220,12 @@ def listen_for_msg():
                 send_excel(peer_id, filename)
                 continue
 
+            if text == "/test":
+                for i in range(20):
+                    send_msg(peer_id, f"test {i}")
+                send_msg(peer_id, "Тест очереди завершён")
+                continue
+
         if text == "Сертификат":
             if not is_subscribed(user_id):
                 send_msg(peer_id,
@@ -186,13 +259,10 @@ def listen_for_msg():
                      "Привет! Для получения сертификата нажмите кнопку ниже 👇",
                      keyboard=kb)
 
-while True:
-    try:
-        listen_for_msg()
-    except Exception as e:
-        print("Ошибка:", e)
-        time.sleep(5)
-
-
 if __name__ == '__main__':
-    listen_for_msg()
+    while True:
+        try:
+            listen_for_msg()
+        except Exception as e:
+            print("Ошибка:", e)
+            time.sleep(5)
