@@ -2,6 +2,7 @@
 
 settings.py
  .venv
+logs/
 
  __pycache__/
 *.pyc
@@ -24,6 +25,8 @@ venv/
 # OS
 .DS_Store
 Thumbs.db
-backups/
-/certificates.db
+database/backups/
+/database/certificates.db
+/database/certificates.db-shm
+/database/certificates.db-wal
 /certificates.xlsx

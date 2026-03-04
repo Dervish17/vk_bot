@@ -1,5 +1,6 @@
 import pandas as pd
-from database import get_all_users
+from database.database import Data
+
 
 def export_excel(filename="certificates.xlsx"):
     rows = get_all_users()

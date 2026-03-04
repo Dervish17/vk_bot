@@ -3,18 +3,20 @@ import vk_api.exceptions
 import requests
 import threading
 import queue
+import logging
+from logging.handlers import RotatingFileHandler
+import pandas as pd
 from config import *
 from vk_api import VkUpload
 from vk_api.utils import get_random_id
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkLongPoll, VkEventType
 from PIL import Image, ImageDraw, ImageFont
-from database import init_db, save_certificate, get_stats, backup_database
-from export_excel import export_excel
+from database.database import Data
 from io import BytesIO
 import time
 
-init_db()
+db = Data()
 
 send_queue = queue.Queue()
 vk_session = vk_api.VkApi(token=TOKEN)
@@ -34,6 +36,27 @@ admin_keyboard.add_button('Статистика', color=VkKeyboardColor.PRIMARY)
 admin_keyboard.add_button('Экспорт', color=VkKeyboardColor.POSITIVE)
 
 waiting_fio = dict()
+LOG_DIR = "logs"
+
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+file_handler = RotatingFileHandler(
+    os.path.join(LOG_DIR, "bot.log"),
+    maxBytes=5_000_000,
+    backupCount=5,
+    encoding="utf-8"
+)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    handlers=[
+        file_handler,
+        logging.StreamHandler()
+    ]
+)
+
+logger = logging.getLogger("VK_CERT_BOT")
 
 def sender_worker():
     while True:
@@ -50,9 +73,9 @@ def sender_worker():
 
 def backup_worker():
     while True:
-        time.sleep(60 * 60 * 12)
+        time.sleep(30)
         try:
-            backup_database()
+            db.backup_database()
         except Exception as e:
             print("Backup error:", e)
 
@@ -174,6 +197,17 @@ def is_subscribed(user_id):
     result = vk.groups.isMember(group_id=GROUP_ID, user_id=user_id)
     return bool(result)
 
+def export_excel(filename="certificates.xlsx"):
+    rows = db.get_all_users()
+
+    df = pd.DataFrame(
+        rows,
+        columns=["ФИО", "VK ID", "Кол-во получений", "Последняя дата"]
+    )
+
+    df.to_excel(filename, index=False)
+    return filename
+
 def send_excel(peer_id, filename):
     doc = upload.document_message(filename, peer_id=peer_id)
     attachment = f"doc{doc['doc']['owner_id']}_{doc['doc']['id']}"
@@ -206,7 +240,7 @@ def listen_for_msg():
 
         if user_id in ADMIN_IDS:
             if text == "Статистика":
-                total, users = get_stats()
+                total, users = db.get_stats()
                 send_msg(peer_id, f"📊 Статистика:\nВсего сертификатов: {total}\nПользователей: {users}", keyboard=kb)
                 continue
 
@@ -248,7 +282,7 @@ def listen_for_msg():
             send_msg(peer_id, "Генерирую сертификат...", keyboard=None)
             img_bytes = draw_certificate(fio)
             send_image(peer_id, img_bytes)
-            save_certificate(user_id, fio)
+            db.save_certificate(user_id, fio)
 
             send_msg(peer_id, "✅ Готово! Можете скачать и распечатать 👇", keyboard=keyboard)
             continue
