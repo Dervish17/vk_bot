@@ -159,7 +159,7 @@ def _send_image(peer_id, image_bytes):
             time.sleep(delay)
             retries += 1
 
-        print("Image send failed after retries")
+    print("Image send failed after retries")
 
 def is_subscribed(user_id):
     result = vk.groups.isMember(group_id=GROUP_ID, user_id=user_id)
