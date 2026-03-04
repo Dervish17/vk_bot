@@ -75,3 +75,34 @@ def get_all_users():
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+def cleanup_backups(max_files=10):
+    if not os.path.exists('backups'):
+        return
+
+    backups = sorted(
+        [f for f in os.listdir('backups') if f.startswith("backup_")],
+        reverse=True
+    )
+
+    for old in backups[max_files:]:
+        os.remove(os.path.join('backups', old))
+
+def backup_database():
+    if not os.path.exists(DB_NAME):
+        print("База не найдена, бэкап пропущен")
+        return
+
+    if not os.path.exists('backups'):
+        os.makedirs('backups')
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_name = os.path.join('backups', f"backup_{timestamp}.db")
+
+    with sqlite3.connect(DB_NAME) as source:
+        with sqlite3.connect(backup_name) as backup:
+            source.backup(backup)
+
+    print(f"Backup created: {backup_name}")
+
+    cleanup_backups()

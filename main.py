@@ -1,7 +1,6 @@
 import vk_api
 import vk_api.exceptions
 import requests
-import re
 import threading
 import queue
 from config import *
@@ -10,7 +9,7 @@ from vk_api.utils import get_random_id
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.longpoll import VkLongPoll, VkEventType
 from PIL import Image, ImageDraw, ImageFont
-from database import init_db, save_certificate, get_stats
+from database import init_db, save_certificate, get_stats, backup_database
 from export_excel import export_excel
 from io import BytesIO
 import time
@@ -48,7 +47,17 @@ def sender_worker():
         finally:
             send_queue.task_done()
 
+
+def backup_worker():
+    while True:
+        time.sleep(60 * 60 * 12)
+        try:
+            backup_database()
+        except Exception as e:
+            print("Backup error:", e)
+
 threading.Thread(target=sender_worker, daemon=True).start()
+threading.Thread(target=backup_worker, daemon=True).start()
 
 def validate_fio(text: str):
     text = text.strip()
