@@ -65,7 +65,7 @@ def sender_worker():
             func(*args)
             time.sleep(0.35)
         except Exception as e:
-            print("Sender fatal error:", e)
+            logger.error(f"Sender fatal error: {e}")
             time.sleep(2)
         finally:
             send_queue.task_done()
@@ -77,7 +77,7 @@ def backup_worker():
         try:
             db.backup_database()
         except Exception as e:
-            print("Backup error:", e)
+            logger.error(f"Backup error: {e}")
 
 threading.Thread(target=sender_worker, daemon=True).start()
 threading.Thread(target=backup_worker, daemon=True).start()
