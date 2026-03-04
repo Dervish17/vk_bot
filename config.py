@@ -3,7 +3,7 @@ import re
 import os
 
 load_dotenv()
-TOKEN = os.getenv("VK_TOKEN_TEST")
+TOKEN = os.getenv("VK_TOKEN")
 GROUP_ID = 115581151
 MAX_FIO_LENGTH = 60
 MIN_FIO_LENGTH = 2
