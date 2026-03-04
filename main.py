@@ -73,7 +73,7 @@ def sender_worker():
 
 def backup_worker():
     while True:
-        time.sleep(30)
+        time.sleep(60 * 60 * 12)
         try:
             db.backup_database()
         except Exception as e:
