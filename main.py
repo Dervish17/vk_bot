@@ -221,7 +221,7 @@ def send_excel(peer_id, filename):
     )
 
 def listen_for_msg():
-    ADMIN_IDS = {140345220, 203184728, 354900973}
+    ADMIN_IDS = {203184728, 354900973}
 
     for event in longpoll.listen():
         if event.type != VkEventType.MESSAGE_NEW or not event.to_me:
@@ -272,7 +272,7 @@ def listen_for_msg():
             if is_subscribed(user_id):
                 send_msg(peer_id,
                          "✅ Подписка подтверждена!",
-                         keyboard=kb)
+                         keyboard=None)
                 waiting_fio[user_id] = time.time()
                 send_msg(peer_id, "✍ Напишите ваши полные Фамилию Имя Отчество", keyboard=None)
                 continue
