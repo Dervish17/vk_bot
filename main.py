@@ -29,6 +29,8 @@ keyboard = VkKeyboard(one_time=True)
 keyboard.add_button('Сертификат', color=VkKeyboardColor.SECONDARY)
 subscribe_keyboard = VkKeyboard(one_time=True)
 subscribe_keyboard.add_openlink_button("Подписаться", "https://vk.com/club115581151")
+sub = VkKeyboard(one_time=True)
+sub.add_button("Я подписался", color=VkKeyboardColor.SECONDARY)
 admin_keyboard = VkKeyboard(one_time=True)
 admin_keyboard.add_button('Сертификат', color=VkKeyboardColor.SECONDARY)
 admin_keyboard.add_line()
@@ -254,18 +256,32 @@ def listen_for_msg():
                     send_msg(peer_id, f"test {i}")
                 send_msg(peer_id, "Тест очереди завершён")
                 continue
-
+            
         if text == "Сертификат":
             if not is_subscribed(user_id):
                 send_msg(peer_id,
-                         "❌ Для получения сертификата необходимо подписаться:",
-                         keyboard=subscribe_keyboard)
+                         "❌ Для получения сертификата необходимо подписаться: https://vk.com/club115581151", 
+                         keyboard=sub)
                 continue
 
             waiting_fio[user_id] = time.time()
             send_msg(peer_id, "✍ Напишите ваши полные Фамилию Имя Отчество", keyboard=None)
             continue
-
+        
+        if text == "Я подписался":
+            if is_subscribed(user_id):
+                send_msg(peer_id,
+                         "✅ Подписка подтверждена!",
+                         keyboard=kb)
+                waiting_fio[user_id] = time.time()
+                send_msg(peer_id, "✍ Напишите ваши полные Фамилию Имя Отчество", keyboard=None)
+                continue
+            else: 
+                send_msg(peer_id, 
+                         "❌ Для получения сертификата необходимо подписаться: https://vk.com/club115581151", 
+                         keyboard=sub)
+                continue
+            
         if user_id in waiting_fio:
             if time.time() - waiting_fio[user_id] > 300:
                 del waiting_fio[user_id]
@@ -278,6 +294,12 @@ def listen_for_msg():
 
             fio = result
             del waiting_fio[user_id]
+
+            if not is_subscribed(user_id):
+                send_msg(peer_id,
+                         "❌ Вы отписались от сообщества. Подпишитесь снова для получения сертификата: https://vk.com/club115581151",
+                         keyboard=sub)
+                continue
 
             send_msg(peer_id, "Генерирую сертификат...", keyboard=None)
             img_bytes = draw_certificate(fio)
